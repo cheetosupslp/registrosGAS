@@ -273,7 +273,7 @@ sb.auth.onAuthStateChange((_ev, session) => {
   // 1. Verificamos que el ID 'login' exista en tu HTML
   const loginDiv = $("login");
   if (loginDiv) {
-      loginDiv.hidden = !!session;
+      loginDiv.style.display = session ? "none" : "";
   } else {
       console.error("ERROR: No se encontró ningún elemento en el HTML con el id='login'");
   }
