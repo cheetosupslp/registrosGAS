@@ -253,15 +253,46 @@ $("bExp").onclick=()=>{
   XLSX.writeFile(wb,"km-gas-"+today()+".xlsx");
 };
 $("bOut").onclick=()=>sb.auth.signOut();
-$("lBtn").onclick=async()=>{
-  const {error}=await sb.auth.signInWithPassword({email:$("lMail").value.trim(),password:$("lPass").value});
-  $("lErr").textContent=error?"Correo o contraseña incorrectos.":"";
+// Evitamos que la página se recargue si el botón está dentro de un <form>
+$("lBtn").onclick = async (e) => {
+  if (e) e.preventDefault(); 
+  const { error } = await sb.auth.signInWithPassword({
+    email: $("lMail").value.trim(),
+    password: $("lPass").value
+  });
+  $("lErr").textContent = error ? "Correo o contraseña incorrectos." : "";
 };
-$("lPass").addEventListener("keydown",e=>{if(e.key==="Enter")$("lBtn").click()});
-sb.auth.onAuthStateChange((_ev,session)=>{
-  $("login").hidden=!!session;
-  if(session)load();else{units={};readings=[];renderAll()}
+
+$("lPass").addEventListener("keydown", e => { 
+  if (e.key === "Enter") $("lBtn").click(); 
 });
+
+sb.auth.onAuthStateChange((_ev, session) => {
+  console.log("Estado de sesión:", session ? "Activa" : "Inactiva");
+  
+  // 1. Verificamos que el ID 'login' exista en tu HTML
+  const loginDiv = $("login");
+  if (loginDiv) {
+      loginDiv.hidden = !!session;
+  } else {
+      console.error("ERROR: No se encontró ningún elemento en el HTML con el id='login'");
+  }
+
+  // 2. Ejecutamos load() de forma segura para ver si ahí está el fallo
+  if (session) {
+      try {
+          console.log("Ejecutando load()...");
+          load();
+      } catch (err) {
+          console.error("ERROR CRÍTICO: La función load() falló.", err);
+      }
+  } else {
+      units = {}; 
+      readings = []; 
+      renderAll();
+  }
+});
+
 renderAll();
 </script>
 </body>
