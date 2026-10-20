@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kilometraje Unidades de Gas</title>
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--tx:#1b1f24;--mu:#6a727c;--bd:#dde1e6;--ok:#1e8e4e;--okb:#e3f5ea;--wa:#b87a00;--wab:#fff3d6;--ro:#c62828;--rob:#fde4e4;--ac:#1f5fbf;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171a;--card:#1d2126;--tx:#e8eaed;--mu:#9aa3ad;--bd:#2f353c;--ok:#4cc27d;--okb:#17301f;--wa:#e6b23a;--wab:#3a2f12;--ro:#ff6b6b;--rob:#3b1a1a;--ac:#6ea3ff}}
+:root[data-theme="dark"]{--bg:#14171a;--card:#1d2126;--tx:#e8eaed;--mu:#9aa3ad;--bd:#2f353c;--ok:#4cc27d;--okb:#17301f;--wa:#e6b23a;--wab:#3a2f12;--ro:#ff6b6b;--rob:#3b1a1a;--ac:#6ea3ff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:0 0 4px}h2{font-size:16px;margin:0 0 10px}
+.mu{color:var(--mu);font-size:13px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.u{border:2px solid var(--bd);border-radius:10px;padding:10px;background:var(--card);cursor:pointer}
+.u.sel{outline:2px solid var(--ac)}
+.u.taller{border-color:var(--ro);background:var(--rob)}
+.u b{font-size:20px}
+.badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:600}
+.b-ok{background:var(--okb);color:var(--ok)}.b-wa{background:var(--wab);color:var(--wa)}.b-ro{background:var(--rob);color:var(--ro)}.b-na{background:var(--bd);color:var(--mu)}
+.row{display:flex;flex-wrap:wrap;gap:10px}
+label{display:flex;flex-direction:column;font-size:13px;color:var(--mu);gap:3px;flex:1 1 140px}
+input,select,button{font:inherit;padding:8px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)}
+button{cursor:pointer;background:var(--ac);color:#fff;border:0;font-weight:600}
+button.sec{background:var(--bg);color:var(--tx);border:1px solid var(--bd)}
+button.dng{background:var(--ro)}
+button:disabled,input:disabled,select:disabled{opacity:.5;cursor:not-allowed}
+.alert{padding:10px 12px;border-radius:8px;margin:10px 0;font-weight:600}
+.alert.ro{background:var(--rob);color:var(--ro);border:1px solid var(--ro)}
+.alert.wa{background:var(--wab);color:var(--wa)}
+.err{color:var(--ro);font-size:13px;min-height:18px}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--bd);font-size:14px}
+th{color:var(--mu);font-weight:600;font-size:12px}
+tr.l-ro td:first-child{border-left:4px solid var(--ro)}tr.l-wa td:first-child{border-left:4px solid var(--wa)}tr.l-ok td:first-child{border-left:4px solid var(--ok)}
+.real{font-weight:700}
+svg{width:100%;height:auto;display:block}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;margin-top:6px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+<div id="login" style="position:fixed;inset:0;background:var(--bg);z-index:9;display:flex;align-items:center;justify-content:center;padding:16px" hidden>
+<div class="card" style="width:100%;max-width:340px"><h2>Iniciar sesión</h2>
+<label>Correo<input id="lMail" type="email" autocomplete="username"></label>
+<label style="margin-top:8px">Contraseña<input id="lPass" type="password" autocomplete="current-password"></label>
+<button id="lBtn" style="margin-top:12px;width:100%">Entrar</button><div id="lErr" class="err"></div></div></div>
+<main>
+<h1>Kilometraje · Unidades de gas</h1>
+<div class="mu">Registro, validación y análisis de discrepancias</div>
+<div id="dbwarn" class="alert wa" hidden>Sin conexión a la base de datos: los registros no se guardarán. Abre la página desde claude.ai con sesión iniciada.</div>
+
+<div class="card" style="margin-top:14px">
+<h2>Unidades</h2>
+<div class="grid" id="units"></div>
+</div>
+
+<div class="card">
+<h2>Nuevo registro</h2>
+<div id="tallerMsg" class="alert ro" hidden></div>
+<div class="row">
+<label>N.º económico<input id="fUnit" type="number" inputmode="numeric" placeholder="Ej. 89"></label>
+<label>Fuente<select id="fSrc">
+<option value="liquidacion">Hoja de liquidación</option>
+<option value="bitacora">Bitácora física (guardia)</option>
+<option value="real">Km real (tomado en la unidad)</option>
+</select></label>
+<label>Fecha<input id="fDate" type="date"></label>
+<label id="lIni">Km inicial<input id="fIni" type="number" inputmode="numeric" min="0"></label>
+<label><span id="lFinT">Km final</span><input id="fFin" type="number" inputmode="numeric" min="0"></label>
+</div>
+<div class="row" style="margin-top:10px">
+<label style="flex:3 1 260px">Nota (operador, carta porte, etc.)<input id="fNote" type="text" maxlength="200"></label>
+<div style="align-self:flex-end"><button id="fSave">Guardar registro</button></div>
+</div>
+<div id="fErr" class="err"></div>
+</div>
+
+<div class="card">
+<h2 id="hTitle">Historial</h2>
+<div class="row" style="margin-bottom:8px">
+<label style="flex:0 1 200px">Ver unidad<select id="vUnit"></select></label>
+<div style="align-self:flex-end;display:flex;gap:8px"><button id="bExp">Exportar a Excel</button><button id="bOut" class="sec">Salir</button></div>
+</div>
+<div id="sum"></div>
+<div id="chart"></div>
+<div class="legend">
+<span><i class="dot" style="background:var(--ok)"></i>Todo en orden</span>
+<span><i class="dot" style="background:var(--wa)"></i>Diferencia leve</span>
+<span><i class="dot" style="background:var(--ro)"></i>Gran diferencia o retroceso</span>
+</div>
+<div class="scroll" style="margin-top:12px"><table>
+<thead><tr><th>Fecha</th><th>Fuente</th><th>Km inicial</th><th>Km final / real</th><th>Recorrido</th><th>Análisis</th><th>Nota</th><th></th></tr></thead>
+<tbody id="rows"></tbody></table></div>
+</div>
+<div class="mu">Umbrales: diferencia leve hasta <span id="tl"></span> km entre el final anterior y el inicio siguiente; mayor a eso, o cualquier retroceso, se marca en rojo. Registros del mismo día se ordenan por km.</div>
+</main>
+<script>
+const UNITS=[89,90,91,92,94,95,96,97,140,141];
+const LEVE=15, MAXDIA=600, MAXDIA_ROJO=1000;
+const SRC={liquidacion:"Liquidación",bitacora:"Bitácora",real:"Km real"};
+document.getElementById("tl").textContent=LEVE;
+const SUPABASE_URL="https://zmjrsqdeapdlfzejlied.supabase.co/rest/v1/";
+const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InptanJzcWRlYXBkbGZ6ZWpsaWVkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTQxNjMsImV4cCI6MjEwODA5MDE2M30.80r35PQEGGHsnCzbqgXH-xiqzlknYTyKcJQlF3Yr2B0";
+let db=null, units={}, readings=[], sel=null, viewU=UNITS[0], pendingDel=null;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt=n=>n==null?"–":Number(n).toLocaleString("es-MX");
+const today=()=>{const d=new Date();return new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
+const status=u=>(units[u]&&units[u].status)||"activo";
+const RANK={ok:0,wa:1,ro:2};
+
+function sortedFor(u){
+  return readings.filter(r=>r.unit===u).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:a.kmFin-b.kmFin);
+}
+function analyze(u){
+  const list=sortedFor(u);
+  return list.map((r,i)=>{
+    const msgs=[];let lvl="ok";
+    const up=(l,m)=>{msgs.push(m);if(RANK[l]>RANK[lvl])lvl=l};
+    if(r.kmIni!=null){
+      if(r.kmFin<r.kmIni)up("ro","Final menor que inicial");
+      else{const rec=r.kmFin-r.kmIni;
+        if(rec>MAXDIA_ROJO)up("ro","Recorrido excesivo ("+fmt(rec)+" km)");
+        else if(rec>MAXDIA)up("wa","Recorrido alto ("+fmt(rec)+" km)");}
+    }
+    const p=i>0?list[i-1]:null;
+    if(p){
+      if(r.kmIni!=null){
+        const d=r.kmIni-p.kmFin;
+        if(d<0)up("ro","Retroceso de "+fmt(-d)+" km vs. registro anterior");
+        else if(d>LEVE)up("ro","Salto de "+fmt(d)+" km sin registrar");
+        else if(d>0)up("wa","Diferencia de "+fmt(d)+" km vs. registro anterior");
+      }else if(r.kmFin<p.kmFin)up("ro","Km real menor al registro anterior ("+fmt(p.kmFin)+")");
+    }
+    if(!msgs.length)msgs.push(p?"Coincide con el registro anterior":"Primer registro");
+    return {r,lvl,msgs,rec:r.kmIni!=null?r.kmFin-r.kmIni:null};
+  });
+}
+function worst(a){return a.reduce((m,x)=>RANK[x.lvl]>RANK[m]?x.lvl:m,"ok")}
+const LBL={ok:"En orden",wa:"Diferencia leve",ro:"Revisar"};
+
+function renderUnits(){
+  $("units").innerHTML=UNITS.map(u=>{
+    const a=analyze(u),t=status(u)==="taller",last=a.length?a[a.length-1].r.kmFin:null;
+    const w=a.length?worst(a):null;
+    return `<div class="u ${t?"taller":""} ${u===viewU?"sel":""}" data-u="${u}">
+<div style="display:flex;justify-content:space-between;align-items:center"><b>${u}</b>
+${t?'<span class="badge b-ro">EN TALLER</span>':'<span class="badge b-ok">Activa</span>'}</div>
+<div class="mu">Último km: ${fmt(last)}</div>
+<div style="margin:6px 0">${w?`<span class="badge b-${w}">${LBL[w]}</span>`:'<span class="badge b-na">Sin datos</span>'}</div>
+<button class="sec" data-t="${u}" style="width:100%;padding:5px">${t?"Marcar activa":"Enviar a taller"}</button></div>`}).join("");
+}
+function renderForm(){
+  const u=parseInt($("fUnit").value,10),src=$("fSrc").value;
+  const real=src==="real";
+  $("lIni").style.display=real?"none":"";
+  $("lFinT").textContent=real?"Km real (tablero)":"Km final";
+  const t=UNITS.includes(u)&&status(u)==="taller";
+  const m=$("tallerMsg");
+  if(t){m.hidden=false;m.textContent="⚠ La unidad "+u+" está EN TALLER. No se reciben registros de kilometraje hasta marcarla como activa."}else m.hidden=true;
+  ["fSrc","fDate","fIni","fFin","fNote","fSave"].forEach(i=>$(i).disabled=t);
+}
+function renderHistory(){
+  const u=viewU,a=analyze(u),t=status(u)==="taller";
+  $("hTitle").textContent="Historial · Unidad "+u;
+  let s="";
+  if(t)s+='<div class="alert ro">⚠ Unidad en taller: sin registros nuevos.</div>';
+  if(a.length){const w=worst(a),bad=a.filter(x=>x.lvl==="ro").length,mid=a.filter(x=>x.lvl==="wa").length;
+    s+=`<div class="alert ${w==="ok"?"":w}" style="${w==="ok"?"background:var(--okb);color:var(--ok)":""}">${w==="ok"?"✔ Todo en orden":w==="wa"?"Diferencias leves detectadas":"✖ Discrepancias graves detectadas"} · ${a.length} registros · ${bad} rojos · ${mid} amarillos</div>`}
+  else s+='<div class="mu">Aún no hay registros para esta unidad.</div>';
+  $("sum").innerHTML=s;
+  // gráfico
+  if(a.length>=2){
+    const W=640,H=200,P=40;const ys=a.map(x=>x.r.kmFin);let mn=Math.min(...ys),mx=Math.max(...ys);if(mn===mx){mn-=1;mx+=1}
+    const X=i=>P+(W-P-10)*i/(a.length-1),Y=v=>H-24-(H-44)*(v-mn)/(mx-mn);
+    const col={ok:"var(--ok)",wa:"var(--wa)",ro:"var(--ro)"};
+    let g=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Kilometraje en el tiempo">`;
+    g+=`<line x1="${P}" y1="${H-24}" x2="${W-10}" y2="${H-24}" stroke="var(--bd)"/><line x1="${P}" y1="20" x2="${P}" y2="${H-24}" stroke="var(--bd)"/>`;
+    g+=`<text x="${P-4}" y="${Y(mx)+4}" text-anchor="end" font-size="10" fill="var(--mu)">${fmt(mx)}</text><text x="${P-4}" y="${Y(mn)+4}" text-anchor="end" font-size="10" fill="var(--mu)">${fmt(mn)}</text>`;
+    g+=`<text x="${P}" y="${H-8}" font-size="10" fill="var(--mu)">${a[0].r.date}</text><text x="${W-10}" y="${H-8}" text-anchor="end" font-size="10" fill="var(--mu)">${a[a.length-1].r.date}</text>`;
+    g+=`<polyline fill="none" stroke="var(--ac)" stroke-width="2" points="${a.map((x,i)=>X(i)+","+Y(x.r.kmFin)).join(" ")}"/>`;
+    a.forEach((x,i)=>{g+=`<circle cx="${X(i)}" cy="${Y(x.r.kmFin)}" r="${x.r.source==="real"?7:5}" fill="${col[x.lvl]}" stroke="var(--card)" stroke-width="2"><title>${x.r.date} · ${fmt(x.r.kmFin)} km · ${esc(x.msgs.join("; "))}</title></circle>`});
+    $("chart").innerHTML=g+"</svg>";
+  }else $("chart").innerHTML='<div class="mu">El gráfico aparece con 2 o más registros. Los puntos grandes son km real.</div>';
+  $("rows").innerHTML=[...a].reverse().map(x=>{const r=x.r;
+    return `<tr class="l-${x.lvl}"><td>${esc(r.date)}</td><td class="${r.source==="real"?"real":""}">${r.source==="real"?"★ ":""}${SRC[r.source]||""}</td>
+<td>${fmt(r.kmIni)}</td><td>${fmt(r.kmFin)}</td><td>${x.rec==null?"–":fmt(x.rec)+" km"}</td>
+<td><span class="badge b-${x.lvl}">${LBL[x.lvl]}</span><div class="mu">${esc(x.msgs.join(" · "))}</div></td>
+<td>${esc(r.note||"")}</td><td><button class="sec" data-del="${r.id}">${pendingDel===r.id?"¿Seguro?":"Borrar"}</button></td></tr>`}).join("");
+}
+function renderAll(){renderUnits();renderForm();renderHistory()}
+
+$("vUnit").innerHTML=UNITS.map(u=>`<option>${u}</option>`).join("");
+$("vUnit").onchange=e=>{viewU=+e.target.value;renderAll()};
+$("fDate").value=today();
+["fUnit","fSrc"].forEach(i=>$(i).addEventListener("input",()=>{const u=parseInt($("fUnit").value,10);if(UNITS.includes(u)){viewU=u;$("vUnit").value=u}$("fErr").textContent="";renderAll()}));
+
+
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const fail=m=>{$("fErr").textContent=m};
+async function load(){
+  const [u,r]=await Promise.all([sb.from("units").select("*"),sb.from("readings").select("*")]);
+  const e=u.error||r.error;
+  if(e){$("dbwarn").hidden=false;$("dbwarn").textContent="Error de base de datos: "+e.message;return}
+  $("dbwarn").hidden=true;
+  units={};u.data.forEach(x=>units[x.unit]={status:x.status});
+  readings=r.data.map(x=>({id:String(x.id),unit:x.unit,source:x.source,date:x.date,kmIni:x.km_ini,kmFin:x.km_fin,note:x.note}));
+  renderAll();
+}
+$("units").onclick=async e=>{
+  const tb=e.target.closest("[data-t]");
+  if(tb){const u=+tb.dataset.t,ns=status(u)==="taller"?"activo":"taller";
+    const {error}=await sb.from("units").upsert({unit:u,status:ns,changed_at:new Date().toISOString()});
+    if(error)fail("No se pudo cambiar el estado: "+error.message);else load();return}
+  const c=e.target.closest("[data-u]");
+  if(c){viewU=+c.dataset.u;$("vUnit").value=viewU;$("fUnit").value=viewU;renderAll()}
+};
+$("rows").onclick=async e=>{
+  const b=e.target.closest("[data-del]");if(!b)return;const id=b.dataset.del;
+  if(pendingDel!==id){pendingDel=id;renderHistory();return}
+  pendingDel=null;const {error}=await sb.from("readings").delete().eq("id",id);
+  if(error)fail("No se pudo borrar: "+error.message);else load();
+};
+$("fSave").onclick=async()=>{
+  const u=parseInt($("fUnit").value,10),src=$("fSrc").value,date=$("fDate").value;
+  if(!UNITS.includes(u))return fail("El n.º "+($("fUnit").value||"(vacío)")+" no es una unidad de gas. Válidos: "+UNITS.join(", "));
+  if(status(u)==="taller")return fail("La unidad está en taller.");
+  if(!date)return fail("Indica la fecha.");
+  const fin=$("fFin").value===""?null:Number($("fFin").value);
+  const ini=src==="real"||$("fIni").value===""?null:Number($("fIni").value);
+  if(fin==null||fin<0)return fail(src==="real"?"Indica el km real.":"Indica el km final.");
+  if(src!=="real"&&ini==null)return fail("Indica el km inicial.");
+  const {error}=await sb.from("readings").insert({unit:u,source:src,date,km_ini:ini,km_fin:fin,note:$("fNote").value.trim()});
+  if(error)return fail("No se pudo guardar: "+error.message);
+  fail("");$("fIni").value="";$("fFin").value="";$("fNote").value="";viewU=u;$("vUnit").value=u;load();
+};
+$("bExp").onclick=()=>{
+  const rows=[],res=[];
+  UNITS.forEach(u=>{const a=analyze(u);
+    a.forEach(x=>rows.push({"Unidad":u,"Fecha":x.r.date,"Fuente":SRC[x.r.source],"Km inicial":x.r.kmIni,"Km final / real":x.r.kmFin,"Recorrido":x.rec,"Alerta":LBL[x.lvl],"Detalle":x.msgs.join(" · "),"Nota":x.r.note||""}));
+    res.push({"Unidad":u,"Estado":status(u)==="taller"?"En taller":"Activa","Registros":a.length,"Último km":a.length?a[a.length-1].r.kmFin:null,"Rojos":a.filter(x=>x.lvl==="ro").length,"Amarillos":a.filter(x=>x.lvl==="wa").length})});
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),"Registros");
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(res),"Resumen");
+  XLSX.writeFile(wb,"km-gas-"+today()+".xlsx");
+};
+$("bOut").onclick=()=>sb.auth.signOut();
+$("lBtn").onclick=async()=>{
+  const {error}=await sb.auth.signInWithPassword({email:$("lMail").value.trim(),password:$("lPass").value});
+  $("lErr").textContent=error?"Correo o contraseña incorrectos.":"";
+};
+$("lPass").addEventListener("keydown",e=>{if(e.key==="Enter")$("lBtn").click()});
+sb.auth.onAuthStateChange((_ev,session)=>{
+  $("login").hidden=!!session;
+  if(session)load();else{units={};readings=[];renderAll()}
+});
+renderAll();
+</script>
+</body>
+</html>
