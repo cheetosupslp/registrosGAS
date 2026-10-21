@@ -107,7 +107,7 @@ const UNITS=[89,90,91,92,94,95,96,97,140,141];
 const LEVE=15, MAXDIA=600, MAXDIA_ROJO=1000;
 const SRC={liquidacion:"Liquidación",bitacora:"Bitácora",real:"Km real"};
 document.getElementById("tl").textContent=LEVE;
-const SUPABASE_URL="https://zmjrsqdeapdlfzejlied.supabase.co";
+const SUPABASE_URL="https://zmjrsqdeapdlfzejlied.supabase.co/rest/v1/";
 const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InptanJzcWRlYXBkbGZ6ZWpsaWVkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTQxNjMsImV4cCI6MjEwODA5MDE2M30.80r35PQEGGHsnCzbqgXH-xiqzlknYTyKcJQlF3Yr2B0";
 let db=null, units={}, readings=[], sel=null, viewU=UNITS[0], pendingDel=null;
 const $=id=>document.getElementById(id);
@@ -253,46 +253,15 @@ $("bExp").onclick=()=>{
   XLSX.writeFile(wb,"km-gas-"+today()+".xlsx");
 };
 $("bOut").onclick=()=>sb.auth.signOut();
-// Evitamos que la página se recargue si el botón está dentro de un <form>
-$("lBtn").onclick = async (e) => {
-  if (e) e.preventDefault(); 
-  const { error } = await sb.auth.signInWithPassword({
-    email: $("lMail").value.trim(),
-    password: $("lPass").value
-  });
-  $("lErr").textContent = error ? "Correo o contraseña incorrectos." : "";
+$("lBtn").onclick=async()=>{
+  const {error}=await sb.auth.signInWithPassword({email:$("lMail").value.trim(),password:$("lPass").value});
+  $("lErr").textContent=error?"Correo o contraseña incorrectos.":"";
 };
-
-$("lPass").addEventListener("keydown", e => { 
-  if (e.key === "Enter") $("lBtn").click(); 
+$("lPass").addEventListener("keydown",e=>{if(e.key==="Enter")$("lBtn").click()});
+sb.auth.onAuthStateChange((_ev,session)=>{
+  $("login").hidden=!!session;
+  if(session)load();else{units={};readings=[];renderAll()}
 });
-
-sb.auth.onAuthStateChange((_ev, session) => {
-  console.log("Estado de sesión:", session ? "Activa" : "Inactiva");
-  
-  // 1. Verificamos que el ID 'login' exista en tu HTML
-  const loginDiv = $("login");
-  if (loginDiv) {
-      loginDiv.style.display = session ? "none" : "";
-  } else {
-      console.error("ERROR: No se encontró ningún elemento en el HTML con el id='login'");
-  }
-
-  // 2. Ejecutamos load() de forma segura para ver si ahí está el fallo
-  if (session) {
-      try {
-          console.log("Ejecutando load()...");
-          load();
-      } catch (err) {
-          console.error("ERROR CRÍTICO: La función load() falló.", err);
-      }
-  } else {
-      units = {}; 
-      readings = []; 
-      renderAll();
-  }
-});
-
 renderAll();
 </script>
 </body>
