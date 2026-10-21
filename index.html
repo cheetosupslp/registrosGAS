@@ -107,7 +107,7 @@ const UNITS=[89,90,91,92,94,95,96,97,140,141];
 const LEVE=15, MAXDIA=600, MAXDIA_ROJO=1000;
 const SRC={liquidacion:"Liquidación",bitacora:"Bitácora",real:"Km real"};
 document.getElementById("tl").textContent=LEVE;
-const SUPABASE_URL="https://zmjrsqdeapdlfzejlied.supabase.co";
+const SUPABASE_URL="https://zmjrsqdeapdlfzejlied.supabase.co/rest/v1/";
 const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InptanJzcWRlYXBkbGZ6ZWpsaWVkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTQxNjMsImV4cCI6MjEwODA5MDE2M30.80r35PQEGGHsnCzbqgXH-xiqzlknYTyKcJQlF3Yr2B0";
 let db=null, units={}, readings=[], sel=null, viewU=UNITS[0], pendingDel=null;
 const $=id=>document.getElementById(id);
@@ -258,9 +258,18 @@ $("lBtn").onclick=async()=>{
   $("lErr").textContent=error?"Correo o contraseña incorrectos.":"";
 };
 $("lPass").addEventListener("keydown",e=>{if(e.key==="Enter")$("lBtn").click()});
-sb.auth.onAuthStateChange((_ev,session)=>{
-  $("login").hidden=!!session;
-  if(session)load();else{units={};readings=[];renderAll()}
+sb.auth.onAuthStateChange((_ev, session) => {
+  if (session) {
+    // Forza la desaparición del login a nivel de estilos
+    $("login").style.display = "none";
+    load();
+  } else {
+    // Restaura la caja de login al cerrar sesión
+    $("login").style.display = ""; 
+    units = {};
+    readings = [];
+    renderAll();
+  }
 });
 renderAll();
 </script>
