@@ -47,7 +47,7 @@ svg{width:100%;height:auto;display:block}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
-<div id="login" style="position:fixed;inset:0;background:var(--bg);z-index:9;display:flex;align-items:center;justify-content:center;padding:16px" hidden>
+<div id="login" style="position:fixed;inset:0;background:var(--bg);z-index:9;display:flex;align-items:center;justify-content:center;padding:16px">
 <div class="card" style="width:100%;max-width:340px"><h2>Iniciar sesión</h2>
 <label>Correo<input id="lMail" type="email" autocomplete="username"></label>
 <label style="margin-top:8px">Contraseña<input id="lPass" type="password" autocomplete="current-password"></label>
@@ -106,6 +106,7 @@ svg{width:100%;height:auto;display:block}
 const UNITS=[89,90,91,92,94,95,96,97,140,141];
 const LEVE=15, MAXDIA=600, MAXDIA_ROJO=1000;
 const SRC={liquidacion:"Liquidación",bitacora:"Bitácora",real:"Km real"};
+const SINGLE=s=>s==="real"||s==="bitacora"; // registros de un solo km
 document.getElementById("tl").textContent=LEVE;
 const SUPABASE_URL="https://zmjrsqdeapdlfzejlied.supabase.co";
 const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InptanJzcWRlYXBkbGZ6ZWpsaWVkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTQxNjMsImV4cCI6MjEwODA5MDE2M30.80r35PQEGGHsnCzbqgXH-xiqzlknYTyKcJQlF3Yr2B0";
@@ -160,9 +161,9 @@ ${t?'<span class="badge b-ro">EN TALLER</span>':'<span class="badge b-ok">Activa
 }
 function renderForm(){
   const u=parseInt($("fUnit").value,10),src=$("fSrc").value;
-  const real=src==="real";
+  const real=SINGLE(src);
   $("lIni").style.display=real?"none":"";
-  $("lFinT").textContent=real?"Km real (tablero)":"Km final";
+  $("lFinT").textContent=src==="real"?"Km real (tablero)":src==="bitacora"?"Km de bitácora (guardia)":"Km final";
   const t=UNITS.includes(u)&&status(u)==="taller";
   const m=$("tallerMsg");
   if(t){m.hidden=false;m.textContent="⚠ La unidad "+u+" está EN TALLER. No se reciben registros de kilometraje hasta marcarla como activa."}else m.hidden=true;
@@ -191,7 +192,7 @@ function renderHistory(){
     $("chart").innerHTML=g+"</svg>";
   }else $("chart").innerHTML='<div class="mu">El gráfico aparece con 2 o más registros. Los puntos grandes son km real.</div>';
   $("rows").innerHTML=[...a].reverse().map(x=>{const r=x.r;
-    return `<tr class="l-${x.lvl}"><td>${esc(r.date)}</td><td class="${r.source==="real"?"real":""}">${r.source==="real"?"★ ":""}${SRC[r.source]||""}</td>
+    return `<tr class="l-${x.lvl}"><td>${esc(r.date)}</td><td class="${r.source==="real"?"real":""}">${r.kmIni==null?`<select data-src="${r.id}" style="padding:4px 6px"><option value="real"${r.source==="real"?" selected":""}>★ Km real</option><option value="bitacora"${r.source==="bitacora"?" selected":""}>Bitácora</option></select>`:(SRC[r.source]||"")}</td>
 <td>${fmt(r.kmIni)}</td><td>${fmt(r.kmFin)}</td><td>${x.rec==null?"–":fmt(x.rec)+" km"}</td>
 <td><span class="badge b-${x.lvl}">${LBL[x.lvl]}</span><div class="mu">${esc(x.msgs.join(" · "))}</div></td>
 <td>${esc(r.note||"")}</td><td><button class="sec" data-del="${r.id}">${pendingDel===r.id?"¿Seguro?":"Borrar"}</button></td></tr>`}).join("");
@@ -229,15 +230,20 @@ $("rows").onclick=async e=>{
   pendingDel=null;const {error}=await sb.from("readings").delete().eq("id",id);
   if(error)fail("No se pudo borrar: "+error.message);else load();
 };
+$("rows").onchange=async e=>{
+  const sl=e.target.closest("[data-src]");if(!sl)return;
+  const {error}=await sb.from("readings").update({source:sl.value}).eq("id",sl.dataset.src);
+  if(error)fail("No se pudo cambiar el tipo: "+error.message);else load();
+};
 $("fSave").onclick=async()=>{
   const u=parseInt($("fUnit").value,10),src=$("fSrc").value,date=$("fDate").value;
   if(!UNITS.includes(u))return fail("El n.º "+($("fUnit").value||"(vacío)")+" no es una unidad de gas. Válidos: "+UNITS.join(", "));
   if(status(u)==="taller")return fail("La unidad está en taller.");
   if(!date)return fail("Indica la fecha.");
   const fin=$("fFin").value===""?null:Number($("fFin").value);
-  const ini=src==="real"||$("fIni").value===""?null:Number($("fIni").value);
-  if(fin==null||fin<0)return fail(src==="real"?"Indica el km real.":"Indica el km final.");
-  if(src!=="real"&&ini==null)return fail("Indica el km inicial.");
+  const ini=SINGLE(src)||$("fIni").value===""?null:Number($("fIni").value);
+  if(fin==null||fin<0)return fail(SINGLE(src)?"Indica el km.":"Indica el km final.");
+  if(!SINGLE(src)&&ini==null)return fail("Indica el km inicial.");
   const {error}=await sb.from("readings").insert({unit:u,source:src,date,km_ini:ini,km_fin:fin,note:$("fNote").value.trim()});
   if(error)return fail("No se pudo guardar: "+error.message);
   fail("");$("fIni").value="";$("fFin").value="";$("fNote").value="";viewU=u;$("vUnit").value=u;load();
@@ -258,18 +264,9 @@ $("lBtn").onclick=async()=>{
   $("lErr").textContent=error?"Correo o contraseña incorrectos.":"";
 };
 $("lPass").addEventListener("keydown",e=>{if(e.key==="Enter")$("lBtn").click()});
-sb.auth.onAuthStateChange((_ev, session) => {
-  if (session) {
-    // Forza la desaparición del login a nivel de estilos
-    $("login").style.display = "none";
-    load();
-  } else {
-    // Restaura la caja de login al cerrar sesión
-    $("login").style.display = ""; 
-    units = {};
-    readings = [];
-    renderAll();
-  }
+sb.auth.onAuthStateChange((_ev,session)=>{
+  $("login").style.display=session?"none":"flex";
+  if(session)load();else{units={};readings=[];renderAll()}
 });
 renderAll();
 </script>
