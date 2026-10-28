@@ -157,7 +157,7 @@ function renderUnits(){
 ${t?'<span class="badge b-ro">EN TALLER</span>':'<span class="badge b-ok">Activa</span>'}</div>
 <div class="mu">Último km: ${fmt(last)}</div>
 <div style="margin:6px 0">${w?`<span class="badge b-${w}">${LBL[w]}</span>`:'<span class="badge b-na">Sin datos</span>'}</div>
-<button class="sec" data-t="${u}" style="width:100%;padding:5px">${t?"Marcar activa":"Enviar a taller"}</button></div>`}).join("");
+<button class="sec" data-t="${u}" style="width:100%;padding:5px">${t?"Marcar activa":"En taller"}</button></div>`}).join("");
 }
 function renderForm(){
   const u=parseInt($("fUnit").value,10),src=$("fSrc").value;
